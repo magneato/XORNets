@@ -1,0 +1,2 @@
+# XORNets
+AI using XOR
