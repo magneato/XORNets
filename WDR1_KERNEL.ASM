@@ -253,7 +253,7 @@ DISPLAY_RESULT PROC
     MOV AH, 02h
     INT 21h
     
-    ; Print newline
+    ; Print newlineXORNets is stored in a single assembler file called WDR1_KERNEL.ASM
     MOV DL, 0Dh
     MOV AH, 02h
     INT 21h
