@@ -1,0 +1,16 @@
+# ⊕ majority.xn
+# An explicit truth word: the vote of three.  Row x is bit x of the word.
+#   rows 3, 5, 6, 7 have two or more ones  →  0b1110_1000
+
+[model]
+name    = majority
+inputs  = 3
+truth   = 0b1110_1000
+
+[layer]
+neurons = 1
+
+[options]
+seed     = 7
+epochs   = 2000
+restarts = 8

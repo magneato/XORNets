@@ -1,0 +1,602 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>xn · XORNets</title>
+<meta name="description" content="xn — (x)or (n)ets. A 1-bit cortex in x86-64 assembly. Every weight is a bit, every neuron is an XOR gate, and a swarm of a billion agents costs the memory of one.">
+<meta property="og:title" content="xn · XORNets — the bigger they are, the harder they fall">
+<meta property="og:description" content="A 1-bit neural cortex in pure x86-64 assembly. Swarms of agents. One champion.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='26' fill='none' stroke='%2339ff9f' stroke-width='6'/%3E%3Cpath d='M32 8v48M8 32h48' stroke='%2339ff9f' stroke-width='6'/%3E%3C/svg%3E">
+<style>
+:root {
+  --void: #04060a;
+  --deep: #0a0f17;
+  --panel: rgba(10, 18, 26, .78);
+  --line: rgba(57, 255, 159, .18);
+  --ink: #d8ffe9;
+  --dim: #7fa894;
+  --green: #39ff9f;
+  --cyan: #3ef0ff;
+  --violet: #b26bff;
+  --magenta: #ff3d81;
+  --amber: #ffc94a;
+  --mono: "JetBrains Mono", ui-monospace, monospace;
+  --sans: "Space Grotesk", system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0; background: var(--void); color: var(--ink);
+  font-family: var(--sans); line-height: 1.55; overflow-x: hidden;
+}
+#rain { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; opacity: .55; }
+.scan { position: fixed; inset: 0; z-index: 1; pointer-events: none;
+  background: repeating-linear-gradient(to bottom, rgba(0,0,0,0) 0 2px, rgba(0,0,0,.18) 3px 4px);
+  mix-blend-mode: multiply; }
+main { position: relative; z-index: 2; }
+section { max-width: 1120px; margin: 0 auto; padding: 96px 16px; }
+a { color: var(--cyan); }
+code, pre, .mono { font-family: var(--mono); }
+
+/* ── hero ── */
+.hero { min-height: 100vh; display: grid; place-items: center; text-align: center; padding-top: 48px; }
+.sigil { width: min(220px, 50vw); filter: drop-shadow(0 0 24px rgba(57,255,159,.55)); animation: breathe 6s ease-in-out infinite; }
+@keyframes breathe { 50% { transform: scale(1.04) rotate(45deg); filter: drop-shadow(0 0 44px rgba(178,107,255,.7)); } }
+h1 { font-size: clamp(64px, 16vw, 168px); margin: 8px 0 0; line-height: .9; letter-spacing: -.04em;
+  font-family: var(--mono); position: relative; color: var(--green); text-shadow: 0 0 18px rgba(57,255,159,.6); }
+h1::before, h1::after { content: attr(data-text); position: absolute; inset: 0; opacity: .7; }
+h1::before { color: var(--magenta); animation: glitch 3.1s infinite steps(1); clip-path: inset(0 0 60% 0); }
+h1::after  { color: var(--cyan);    animation: glitch 2.3s infinite steps(1) reverse; clip-path: inset(55% 0 0 0); }
+@keyframes glitch { 0%,92%,100% { transform: none; } 93% { transform: translate(-6px, 2px); } 96% { transform: translate(5px,-3px); } }
+.tag { font-family: var(--mono); color: var(--dim); letter-spacing: .3em; text-transform: uppercase; font-size: 13px; }
+.slogan { font-size: clamp(22px, 4.6vw, 46px); font-weight: 700; margin: 28px auto 8px; max-width: 18ch;
+  background: linear-gradient(90deg, var(--magenta), var(--amber), var(--green), var(--cyan), var(--violet));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  background-size: 300% 100%; animation: flow 8s linear infinite; }
+@keyframes flow { to { background-position: 300% 0; } }
+.lede { max-width: 62ch; margin: 0 auto; color: var(--dim); font-size: 18px; }
+.cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 32px; }
+.btn { font-family: var(--mono); font-size: 14px; padding: 12px 18px; border: 1px solid var(--green); color: var(--green);
+  text-decoration: none; background: rgba(57,255,159,.06); cursor: pointer; transition: .2s; }
+.btn:hover, .btn:focus-visible { background: var(--green); color: var(--void); box-shadow: 0 0 24px rgba(57,255,159,.6); outline: none; }
+.btn.alt { border-color: var(--violet); color: var(--violet); background: rgba(178,107,255,.06); }
+.btn.alt:hover { background: var(--violet); color: var(--void); box-shadow: 0 0 24px rgba(178,107,255,.6); }
+.down { margin-top: 56px; font-family: var(--mono); color: var(--dim); font-size: 12px; animation: bob 2s ease-in-out infinite; }
+@keyframes bob { 50% { transform: translateY(6px); } }
+
+/* ── panels ── */
+h2 { font-size: clamp(30px, 5vw, 52px); margin: 0 0 8px; letter-spacing: -.02em; }
+h2 .glyph { color: var(--green); font-family: var(--mono); }
+.kicker { font-family: var(--mono); font-size: 12px; letter-spacing: .3em; color: var(--violet); text-transform: uppercase; }
+.sub { color: var(--dim); max-width: 64ch; margin: 0 0 32px; }
+.panel { background: var(--panel); border: 1px solid var(--line); backdrop-filter: blur(6px);
+  padding: 24px; position: relative; }
+.panel::before { content: ""; position: absolute; inset: -1px; pointer-events: none;
+  background: linear-gradient(90deg, var(--green), transparent 30%, transparent 70%, var(--violet)) top / 100% 1px no-repeat,
+              linear-gradient(90deg, var(--violet), transparent 30%, transparent 70%, var(--green)) bottom / 100% 1px no-repeat; }
+.grid2 { display: grid; grid-template-columns: 1.2fr 1fr; gap: 24px; align-items: stretch; }
+@media (max-width: 860px) { .grid2 { grid-template-columns: 1fr; } }
+
+/* equation */
+.eq { font-family: var(--mono); font-size: clamp(18px, 3.2vw, 30px); text-align: center; padding: 28px 8px;
+  color: var(--ink); border: 1px dashed var(--line); margin: 0 0 24px; overflow-x: auto; white-space: nowrap; }
+.eq b { color: var(--green); } .eq i { color: var(--violet); font-style: normal; } .eq u { color: var(--cyan); text-decoration: none; }
+
+/* quantum */
+#qnet { width: 100%; height: auto; display: block; }
+.node circle { transition: fill .25s, filter .25s, stroke .25s; }
+.wire { stroke: rgba(127,168,148,.35); stroke-width: 2; fill: none; }
+.wire.hot { stroke: var(--green); filter: drop-shadow(0 0 6px var(--green)); }
+.pulse { fill: var(--cyan); filter: drop-shadow(0 0 8px var(--cyan)); }
+.qlabel { font-family: var(--mono); font-size: 13px; fill: var(--dim); }
+.qbig { font-family: var(--mono); font-size: 22px; font-weight: 700; fill: var(--ink); }
+.qorb { cursor: pointer; }
+.truth { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 15px; }
+.truth th, .truth td { padding: 8px 10px; text-align: center; border-bottom: 1px solid var(--line); }
+.truth th { color: var(--dim); font-weight: 400; font-size: 12px; letter-spacing: .15em; }
+.truth tr.on td { background: rgba(57,255,159,.12); color: var(--green); }
+.psi { font-family: var(--mono); color: var(--violet); min-height: 1.6em; margin: 12px 0 0; font-size: 15px; }
+.hint { color: var(--dim); font-size: 13px; margin-top: 12px; font-family: var(--mono); }
+
+/* swarm */
+.arena-wrap { position: relative; }
+#arena { width: 100%; height: 420px; display: block; background: radial-gradient(circle at 50% 50%, rgba(178,107,255,.08), transparent 70%); }
+.controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 16px 0; font-family: var(--mono); font-size: 13px; }
+.controls select, .controls input { background: var(--deep); color: var(--ink); border: 1px solid var(--line); padding: 8px 10px; font-family: var(--mono); }
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 16px; }
+@media (max-width: 700px) { .stats { grid-template-columns: repeat(2, 1fr); } }
+.stat { border: 1px solid var(--line); padding: 12px; }
+.stat .k { font-family: var(--mono); font-size: 11px; letter-spacing: .2em; color: var(--dim); text-transform: uppercase; }
+.stat .v { font-family: var(--mono); font-size: 24px; color: var(--green); font-variant-numeric: tabular-nums; }
+.champ { margin-top: 16px; font-family: var(--mono); font-size: 14px; border: 1px solid var(--amber); padding: 14px;
+  color: var(--amber); background: rgba(255,201,74,.05); min-height: 80px; white-space: pre-wrap; overflow-x: auto; }
+
+/* fall */
+#fall { width: 100%; height: 460px; display: block; }
+.sizes { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 14px; margin-top: 16px; }
+.sizes td { padding: 8px 6px; border-bottom: 1px solid var(--line); }
+.sizes td:last-child { text-align: right; color: var(--green); font-variant-numeric: tabular-nums; }
+.sizes tr.giant td:last-child { color: var(--magenta); }
+
+/* transmission */
+.terminal { font-family: var(--mono); font-size: 15px; background: #020403; border: 1px solid var(--line);
+  padding: 24px; min-height: 380px; color: var(--green); white-space: pre-wrap; box-shadow: inset 0 0 60px rgba(57,255,159,.06); }
+.terminal .them { color: var(--violet); } .terminal .us { color: var(--cyan); } .terminal .sys { color: var(--dim); }
+.caret { display: inline-block; width: .6em; height: 1.1em; background: var(--green); vertical-align: -2px; animation: blink 1s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+
+/* quickstart */
+pre.code { background: #020403; border: 1px solid var(--line); padding: 20px; overflow-x: auto; font-size: 14px; color: var(--ink); margin: 0; }
+pre.code .c { color: var(--dim); } pre.code .p { color: var(--green); }
+.pillars { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 24px; }
+@media (max-width: 760px) { .pillars { grid-template-columns: 1fr; } }
+.pillar h3 { margin: 0 0 6px; font-size: 18px; } .pillar h3 span { color: var(--green); font-family: var(--mono); }
+.pillar p { margin: 0; color: var(--dim); font-size: 15px; }
+footer { text-align: center; padding: 64px 16px; color: var(--dim); font-family: var(--mono); font-size: 13px; position: relative; z-index: 2; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+  #rain { opacity: .25; }
+}
+</style>
+</head>
+<body>
+<canvas id="rain" aria-hidden="true"></canvas>
+<div class="scan" aria-hidden="true"></div>
+
+<main>
+<!-- ═══ hero ═══ -->
+<section class="hero">
+  <div>
+    <svg class="sigil" viewBox="0 0 200 200" aria-hidden="true">
+      <defs>
+        <linearGradient id="sg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#39ff9f"/><stop offset=".5" stop-color="#3ef0ff"/><stop offset="1" stop-color="#b26bff"/>
+        </linearGradient>
+      </defs>
+      <circle cx="100" cy="100" r="78" fill="none" stroke="url(#sg)" stroke-width="10"/>
+      <path d="M100 22v156M22 100h156" stroke="url(#sg)" stroke-width="10"/>
+      <circle cx="100" cy="100" r="94" fill="none" stroke="#b26bff" stroke-width="1" stroke-dasharray="2 9" opacity=".7">
+        <animateTransform attributeName="transform" type="rotate" from="0 100 100" to="360 100 100" dur="40s" repeatCount="indefinite"/>
+      </circle>
+    </svg>
+    <div class="tag">(x)or (n)ets · 1-bit cortex · x86-64</div>
+    <h1 data-text="xn">xn</h1>
+    <p class="slogan">!!!!The bigger they are, the harder they fall!!!!</p>
+    <p class="lede">Every weight is a bit. Every neuron is the same XOR gate. The runtime is pure assembly, a 21&nbsp;KB static binary with no libc.
+      A swarm of a billion agents fits in the memory of one. It isn't a computer. It's a transmission.</p>
+    <div class="cta">
+      <a class="btn" href="https://github.com/magneato/XORNets">⊕ source on github</a>
+      <a class="btn alt" href="#swarm">spawn the swarm</a>
+      <a class="btn alt" href="https://github.com/magneato/XORNets/blob/main/TLDR.md">TL;DR</a>
+    </div>
+    <div class="down">▾ descend ▾</div>
+  </div>
+</section>
+
+<!-- ═══ the cell ═══ -->
+<section id="cell">
+  <div class="kicker">01 · the primitive</div>
+  <h2>One gate, <span class="glyph">⊕</span> emulating itself</h2>
+  <p class="sub">A cell XORs its input against its weight, counts the disagreements, and fires once enough of them pile up.
+    Below, two inputs drift in superposition until you observe them. Then the hidden rank decides: OR, AND, and a voice that says
+    <em>OR but not AND</em>. That's XOR, built from XOR.</p>
+  <div class="eq"><b>y</b> = popcnt( (<u>x</u> ⊕ <i>w</i>) &amp; fan ) ≥ <i>t</i></div>
+  <div class="grid2">
+    <div class="panel">
+      <svg id="qnet" viewBox="0 0 560 340" role="img" aria-label="Animated XOR network: two inputs, two hidden cells, one output">
+        <g id="wires"></g><g id="pulses"></g><g id="nodes"></g>
+      </svg>
+      <div class="psi" id="psi">|ψ⟩ = α|00⟩ + β|01⟩ + γ|10⟩ + δ|11⟩</div>
+      <div class="hint">click an input orb to collapse it · auto-observe resumes after 6 s</div>
+    </div>
+    <div class="panel">
+      <table class="truth" id="truth">
+        <thead><tr><th>ROW</th><th>OR</th><th>AND</th><th>VOICE</th><th>XOR?</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <p class="hint">hidden n0 · w 00 · t 1 → fires on any 1<br>hidden n1 · w 00 · t 2 → fires on both<br>voice &nbsp;n0 · w 10 · t 2 → n0 ∧ ¬n1</p>
+      <p class="hint">this exact cortex ships as <code>models/signal.xn</code></p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ swarm ═══ -->
+<section id="swarm">
+  <div class="kicker">02 · axn · the champion</div>
+  <h2>Spawn them all. <span class="glyph">Keep one.</span></h2>
+  <p class="sub">An agent is just its number: its genome is <code>splitmix64(seed + id·φ)</code>. Each one wakes up, lives a single life of random
+    bit flips, gets judged by <code>(loss, mutations, id)</code>, and is forgotten. Only the champion survives. This arena runs the real algorithm
+    in your browser. The assembly engine does a million agents in 11 seconds.</p>
+  <div class="panel">
+    <div class="controls">
+      <label>target <select id="target">
+        <option value="xor">xor · 2 → 2 → 1</option>
+        <option value="p3" selected>parity3 · 3 → 3 → 1</option>
+        <option value="p4">parity4 · 4 → 6 → 1</option>
+        <option value="maj">majority · 3 → 1</option>
+      </select></label>
+      <label>life <input id="life" type="number" min="50" max="20000" value="1500" style="width:90px"> mutations</label>
+      <button class="btn" id="go">⊕ spawn</button>
+      <button class="btn alt" id="stop">halt</button>
+    </div>
+    <div class="arena-wrap"><canvas id="arena" aria-label="Swarm arena: each dot is an agent, bright dots made contact, the ringed one is the champion"></canvas></div>
+    <div class="stats">
+      <div class="stat"><div class="k">agents</div><div class="v" id="s-agents">0</div></div>
+      <div class="stat"><div class="k">contact</div><div class="v" id="s-contact">0%</div></div>
+      <div class="stat"><div class="k">mutations</div><div class="v" id="s-steps">0</div></div>
+      <div class="stat"><div class="k">agents/s</div><div class="v" id="s-rate">0</div></div>
+    </div>
+    <div class="champ" id="champ">no champion yet · press spawn</div>
+  </div>
+</section>
+
+<!-- ═══ the fall ═══ -->
+<section id="fall-sec">
+  <div class="kicker">03 · gravity</div>
+  <h2>The bigger they are, <span class="glyph">the harder they fall</span></h2>
+  <p class="sub">The giants are stacked from floating point, data centres and kilowatt-hours. Push one and watch where its bits end up.</p>
+  <div class="grid2">
+    <div class="panel">
+      <canvas id="fall" aria-label="A tower labelled with giant-model costs topples and collapses into a single XOR cell"></canvas>
+      <div class="controls"><button class="btn" id="push">push the giant</button><button class="btn alt" id="rebuild">rebuild</button></div>
+    </div>
+    <div class="panel">
+      <table class="sizes">
+        <tr class="giant"><td>a trillion-parameter giant (fp16)</td><td>~2 000 000 000 000 B</td></tr>
+        <tr class="giant"><td>its training set</td><td>~petabytes</td></tr>
+        <tr><td>xn binary · static · no libc</td><td>21 520 B</td></tr>
+        <tr><td>xn model · 8 layers · fixed</td><td>4 848 B</td></tr>
+        <tr><td>one living agent · peak stack</td><td>9 888 B</td></tr>
+        <tr><td>layer · 64 cells</td><td>592 B</td></tr>
+        <tr><td>cell · weight + threshold</td><td>9 B</td></tr>
+        <tr><td>an agent · it is its seed</td><td>8 B</td></tr>
+        <tr><td>a dataset · ≤ 64 rows · one register</td><td>8 B</td></tr>
+        <tr><td>a billion agents · stored</td><td>0 B</td></tr>
+      </table>
+      <p class="hint">numbers from <code>xn --stats</code></p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ transmission ═══ -->
+<section id="transmission">
+  <div class="kicker">04 · first contact</div>
+  <h2>It is not a computer.</h2>
+  <p class="sub">Decoded from the reply word <code>0110</code>. This is lore. The code is real.</p>
+  <div class="terminal" id="term" aria-live="polite"></div>
+</section>
+
+<!-- ═══ quickstart ═══ -->
+<section id="start">
+  <div class="kicker">05 · open a channel</div>
+  <h2>Run it on your machine</h2>
+  <p class="sub">Linux x86-64. NASM, binutils and a C++26 compiler. No Python, no downloads, no GPU.</p>
+<pre class="code"><span class="p">$</span> git clone https://github.com/magneato/XORNets && cd XORNets
+<span class="p">$</span> ./setup.sh        <span class="c"># nasm · binutils · g++ ≥ 15</span>
+<span class="p">$</span> ./build.sh        <span class="c"># build/xn  build/libxn.a  build/xnc  build/xn_test</span>
+<span class="p">$</span> ./test.sh         <span class="c"># C++26 tests + console checks</span>
+<span class="p">$</span> ./run.sh          <span class="c"># pick a model, watch it learn, talk to it</span>
+
+<span class="p">$</span> build/xn --help --model models/first-contact.xn
+<span class="p">$</span> build/xn --model models/parity3.xn --agents 1000000
+<span class="p">$</span> build/xn --stats</pre>
+  <div class="pillars">
+    <div class="panel pillar"><h3><span>asm</span> runtime</h3><p>xor · layer · inference · train · agents · options · model · io · xn. Raw syscalls, mmap'd model files, clone()d threads, futex joins.</p></div>
+    <div class="panel pillar"><h3><span>c++26</span> instruments</h3><p><code>xnc</code> inspects, forges, sweeps and swarms. <code>xn_test</code> checks the assembly against plain C++ reference code.</p></div>
+    <div class="panel pillar"><h3><span>.xn</span> organisms</h3><p>Plain text: <code>[model]</code>, <code>[layer]</code>, <code>[options]</code>. Trained weights round-trip through <code>--emit</code>.</p></div>
+  </div>
+</section>
+</main>
+
+<footer>
+  ⊕ xn · (x)or (n)ets · AGPL-3.0 · <a href="https://github.com/magneato/XORNets">github.com/magneato/XORNets</a> · <a href="https://github.com/magneato/XORNets/blob/main/TLDR.md">TL;DR</a> · <a href="https://github.com/magneato/XORNets/blob/main/README.md">README</a><br>
+  <span style="opacity:.6">0110 · 0110 · 0110 · the channel stays open</span>
+</footer>
+
+<script>
+"use strict";
+const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const $ = (id) => document.getElementById(id);
+const pop = (x) => { x = x - ((x >>> 1) & 0x55555555); x = (x & 0x33333333) + ((x >>> 2) & 0x33333333); return (((x + (x >>> 4)) & 0x0f0f0f0f) * 0x01010101) >>> 24; };
+
+/* ═══ alien matrix rain ═══ */
+(() => {
+  const c = $("rain"), g = c.getContext("2d");
+  const runes = "⊕⊗⌬⍟⏃⏚⎔⟁⟟⋔⌖ᚠᚱᛟ⍙⍜⍀⌇⍦⍭ᛝᛞ⟒⟓⋈⨁⨂01010110";
+  const words = ["XOR", "⊕⊕⊕", "0110", "WE NEED YOU", "DISAGREE", "1 BIT"];
+  let cols = [], fs = 16, w = 0, h = 0;
+  function size() {
+    w = c.width = innerWidth * devicePixelRatio; h = c.height = innerHeight * devicePixelRatio;
+    fs = 16 * devicePixelRatio; g.font = `${fs}px "JetBrains Mono", monospace`;
+    cols = Array.from({ length: Math.ceil(w / fs) }, () => ({ y: Math.random() * -h, v: 0.4 + Math.random() * 1.1, word: null, wi: 0 }));
+  }
+  size(); addEventListener("resize", size);
+  function frame() {
+    g.fillStyle = "rgba(4,6,10,0.09)"; g.fillRect(0, 0, w, h);
+    cols.forEach((col, i) => {
+      let ch;
+      if (col.word) { ch = col.word[col.wi++]; if (col.wi >= col.word.length) col.word = null; }
+      else { ch = runes[(Math.random() * runes.length) | 0]; if (Math.random() < 0.0015) { col.word = words[(Math.random() * words.length) | 0]; col.wi = 0; } }
+      const hue = col.word ? "#b26bff" : (Math.random() < 0.04 ? "#d8ffe9" : "#39ff9f");
+      g.fillStyle = hue; g.globalAlpha = col.word ? 1 : 0.85;
+      g.fillText(ch, i * fs, col.y);
+      g.globalAlpha = 1;
+      col.y += fs * col.v * 0.5;
+      if (col.y > h + fs * 4 && Math.random() > 0.97) col.y = -fs * (Math.random() * 20);
+    });
+    if (!reduced) requestAnimationFrame(frame);
+  }
+  frame();
+  if (reduced) for (let k = 0; k < 120; k++) frame();
+})();
+
+/* ═══ quantum xor: the signal.xn cortex ═══ */
+(() => {
+  const svg = $("qnet"), NS = "http://www.w3.org/2000/svg";
+  const el = (tag, attrs, parent) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); parent.appendChild(e); return e; };
+  const P = { a: [90, 100], b: [90, 240], h0: [280, 100], h1: [280, 240], y: [470, 170] };
+  const edges = [["a", "h0"], ["b", "h0"], ["a", "h1"], ["b", "h1"], ["h0", "y"], ["h1", "y"]];
+  const wires = {}, nodes = {};
+  edges.forEach(([s, d]) => {
+    const [x1, y1] = P[s], [x2, y2] = P[d], mx = (x1 + x2) / 2;
+    wires[s + d] = el("path", { d: `M${x1} ${y1} C${mx} ${y1} ${mx} ${y2} ${x2} ${y2}`, class: "wire" }, $("wires"));
+  });
+  const label = { a: "x1", b: "x0", h0: "OR", h1: "AND", y: "⊕" };
+  for (const k in P) {
+    const gN = el("g", { class: "node" + (k === "a" || k === "b" ? " qorb" : ""), tabindex: k === "a" || k === "b" ? 0 : -1 }, $("nodes"));
+    const [x, y] = P[k];
+    el("circle", { cx: x, cy: y, r: k === "y" ? 40 : 32, fill: "#0a0f17", stroke: "#39ff9f", "stroke-width": 2 }, gN);
+    const t = el("text", { x, y: y + 8, "text-anchor": "middle", class: "qbig" }, gN); t.textContent = "?";
+    const l = el("text", { x, y: y + (k === "y" ? 62 : 54), "text-anchor": "middle", class: "qlabel" }, gN); l.textContent = label[k];
+    nodes[k] = { g: gN, c: gN.querySelector("circle"), t };
+  }
+  const cell = (x, w, fan, t) => pop((x ^ w) & ((1 << fan) - 1)) >= t;
+  const tbody = $("truth").querySelector("tbody");
+  for (let r = 0; r < 4; r++) {
+    const h0 = cell(r, 0, 2, 1), h1 = cell(r, 0, 2, 2), v = cell((h1 << 1) | h0, 0b10, 2, 2);
+    tbody.insertAdjacentHTML("beforeend", `<tr data-r="${r}"><td>${r.toString(2).padStart(2, "0")}</td><td>${+h0}</td><td>${+h1}</td><td>${+v}</td><td>${v === !!((r >> 1) ^ (r & 1)) ? "✓" : "✗"}</td></tr>`);
+  }
+  let row = 0, manual = 0, bits = [0, 0];
+  function light(k, on) { const n = nodes[k]; n.c.setAttribute("fill", on ? "#39ff9f" : "#0a0f17"); n.t.textContent = on ? "1" : "0"; n.t.style.fill = on ? "#04060a" : "#d8ffe9"; n.c.style.filter = on ? "drop-shadow(0 0 14px #39ff9f)" : "none"; }
+  function pulse(s, d, delay) {
+    if (reduced) return;
+    const path = wires[s + d], len = path.getTotalLength(), dot = el("circle", { r: 5, class: "pulse" }, $("pulses"));
+    const t0 = performance.now() + delay;
+    (function step(now) { const p = Math.min(1, Math.max(0, (now - t0) / 500)); const pt = path.getPointAtLength(p * len); dot.setAttribute("cx", pt.x); dot.setAttribute("cy", pt.y); dot.style.opacity = p > 0 && p < 1 ? 1 : 0; if (p < 1) requestAnimationFrame(step); else dot.remove(); })(performance.now());
+  }
+  function evaluate() {
+    const x = (bits[0] << 1) | bits[1];
+    const h0 = cell(x, 0, 2, 1), h1 = cell(x, 0, 2, 2), y = cell((h1 << 1) | h0, 0b10, 2, 2);
+    light("a", bits[0]); light("b", bits[1]);
+    setTimeout(() => { light("h0", h0); light("h1", h1); }, reduced ? 0 : 450);
+    setTimeout(() => light("y", y), reduced ? 0 : 950);
+    edges.forEach(([s, d]) => { const on = { a: bits[0], b: bits[1], h0, h1 }[s]; wires[s + d].classList.toggle("hot", !!on); if (on) pulse(s, d, s[0] === "h" ? 480 : 0); });
+    tbody.querySelectorAll("tr").forEach((tr) => tr.classList.toggle("on", +tr.dataset.r === x));
+    $("psi").textContent = `|ψ⟩ → |${bits[0]}${bits[1]}⟩ observed · voice says ${+y}`;
+  }
+  function superpose(done) {
+    let n = 0; const id = setInterval(() => {
+      const a = Math.random(), b = Math.random();
+      $("psi").textContent = `|ψ⟩ = ${a.toFixed(2)}|0⟩ + ${Math.sqrt(1 - a * a).toFixed(2)}|1⟩  ⊗  ${b.toFixed(2)}|0⟩ + ${Math.sqrt(1 - b * b).toFixed(2)}|1⟩`;
+      ["a", "b", "h0", "h1", "y"].forEach((k) => { nodes[k].t.textContent = Math.random() < .5 ? "0" : "1"; nodes[k].t.style.fill = "#b26bff"; nodes[k].c.setAttribute("fill", "#0a0f17"); nodes[k].c.style.filter = "none"; });
+      if (++n > 8) { clearInterval(id); done(); }
+    }, 70);
+  }
+  function tick() {
+    if (Date.now() - manual > 6000) { bits = [(row >> 1) & 1, row & 1]; row = (row + 1) & 3; reduced ? evaluate() : superpose(evaluate); }
+  }
+  ["a", "b"].forEach((k, i) => {
+    const flip = () => { manual = Date.now(); bits[i] ^= 1; evaluate(); };
+    nodes[k].g.addEventListener("click", flip);
+    nodes[k].g.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); flip(); } });
+  });
+  evaluate(); setInterval(tick, 2200);
+})();
+
+/* ═══ axn swarm: the real algorithm, in miniature ═══ */
+(() => {
+  const TARGETS = {
+    xor: { inputs: 2, shape: [2, 1], truth: 0b0110 },
+    p3:  { inputs: 3, shape: [3, 1], truth: 0b10010110 },
+    p4:  { inputs: 4, shape: [6, 1], truth: 0b0110100110010110 },
+    maj: { inputs: 3, shape: [1],    truth: 0b11101000 },
+  };
+  const M = 0xffffffff;
+  // splitmix32-ish agent seed and xorshift32 heartbeat: same idea as agents.asm, smaller words
+  const agentSeed = (base, id) => { let z = (base + Math.imul(id + 1, 0x9E3779B9)) >>> 0; z = Math.imul(z ^ (z >>> 16), 0x85ebca6b) >>> 0; z = Math.imul(z ^ (z >>> 13), 0xc2b2ae35) >>> 0; return ((z ^ (z >>> 16)) >>> 0) || 1; };
+  function rngOf(seed) { let s = seed >>> 0 || 1; return () => { s ^= s << 13; s >>>= 0; s ^= s >>> 17; s ^= s << 5; s >>>= 0; return s; }; }
+
+  function live(T, life, seed) {
+    const rnd = rngOf(seed), below = (n) => rnd() % n;
+    const layers = []; let fan = T.inputs;
+    for (const n of T.shape) { layers.push({ n, fan, mask: (1 << fan) - 1, w: new Uint32Array(n), t: new Uint8Array(n) }); fan = n; }
+    const rows = 1 << T.inputs, rowmask = rows === 32 ? M : (1 << rows) - 1;
+    const forward = (x) => { let v = x; for (const L of layers) { let o = 0; for (let k = 0; k < L.n; k++) if (pop((v ^ L.w[k]) & L.mask) >= L.t[k]) o |= 1 << k; v = o; } return v & 1; };
+    const loss = () => { let tr = 0; for (let x = 0; x < rows; x++) tr |= forward(x) << x; return pop((tr ^ T.truth) & rowmask); };
+    for (const L of layers) for (let k = 0; k < L.n; k++) { L.w[k] = rnd() & L.mask; L.t[k] = below(L.fan + 1); }
+    let cur = loss(), steps = 0;
+    while (cur > 0 && steps < life) {
+      const L = layers[below(layers.length)], k = below(L.n), ow = L.w[k], ot = L.t[k];
+      if (rnd() & 3) L.w[k] ^= 1 << below(L.fan); else L.t[k] = below(L.fan + 1);
+      const nl = loss();
+      if (nl <= cur) cur = nl; else { L.w[k] = ow; L.t[k] = ot; }
+      steps++;
+    }
+    return { loss: cur, steps, layers };
+  }
+
+  const cv = $("arena"), g = cv.getContext("2d");
+  let W = 0, H = 0, dots = [], run = null;
+  const MAXDOTS = 4000;
+  function size() { W = cv.width = cv.clientWidth * devicePixelRatio; H = cv.height = cv.clientHeight * devicePixelRatio; }
+  size(); addEventListener("resize", () => { size(); draw(); });
+  function spot(i) { // golden-angle spiral: agent i's home in the arena
+    const r = Math.sqrt(i / MAXDOTS) * Math.min(W, H) * 0.47, a = i * 2.39996323;
+    return [W / 2 + r * Math.cos(a) * (W / H > 1.4 ? 1.6 : 1), H / 2 + r * Math.sin(a)];
+  }
+  function draw() {
+    g.clearRect(0, 0, W, H);
+    const s = devicePixelRatio;
+    for (const d of dots) {
+      const [x, y] = spot(d.id);
+      g.fillStyle = d.loss === 0 ? "#39ff9f" : `rgba(255,61,129,${0.25 + 0.5 / (1 + d.loss)})`;
+      g.beginPath(); g.arc(x, y, (d.loss === 0 ? 2.4 : 1.6) * s, 0, 7); g.fill();
+    }
+    if (run && run.best) {
+      const [x, y] = spot(run.best.id), t = performance.now() / 300;
+      g.strokeStyle = "#ffc94a"; g.lineWidth = 2 * s;
+      for (let k = 0; k < 3; k++) { g.globalAlpha = 1 - ((t + k) % 3) / 3; g.beginPath(); g.arc(x, y, (8 + ((t + k) % 3) * 10) * s, 0, 7); g.stroke(); }
+      g.globalAlpha = 1; g.fillStyle = "#ffc94a"; g.font = `${12 * s}px "JetBrains Mono"`; g.fillText(`♛ #${run.best.id}`, x + 12 * s, y - 12 * s);
+    }
+  }
+  const glyphs = (w, n) => Array.from({ length: n }, (_, i) => ((w >>> (n - 1 - i)) & 1) ? "▮" : "▯").join("");
+  function report() {
+    $("s-agents").textContent = run.n.toLocaleString();
+    $("s-contact").textContent = run.n ? (100 * run.contact / run.n).toFixed(1) + "%" : "0%";
+    $("s-steps").textContent = run.steps.toLocaleString();
+    $("s-rate").textContent = Math.round(run.n / ((performance.now() - run.t0) / 1000)).toLocaleString();
+    const b = run.best; if (!b) return;
+    let txt = `♛ champion agent #${b.id} · loss ${b.loss} · ${b.steps} mutations · seed 0x${b.seed.toString(16)}\n`;
+    b.layers.forEach((L, i) => { txt += `  layer ${i} · fan-in ${L.fan}  `; for (let k = 0; k < L.n; k++) txt += ` ${glyphs(L.w[k], L.fan)}·t${L.t[k]}`; txt += "\n"; });
+    txt += b.loss === 0 ? "  SIGNAL ACQUIRED ⊕" : "  noise · the swarm keeps searching";
+    $("champ").textContent = txt;
+  }
+  function start() {
+    if (run) run.stop = true;
+    const T = TARGETS[$("target").value], life = Math.max(50, Math.min(20000, +$("life").value || 1500));
+    dots = []; const me = { T, life, n: 0, contact: 0, steps: 0, best: null, t0: performance.now(), stop: false, base: 0x5EED };
+    run = me;
+    (function burst() {
+      if (me.stop || me !== run) return;
+      const until = performance.now() + 12;
+      while (performance.now() < until && me.n < MAXDOTS) {
+        const id = me.n, seed = agentSeed(me.base, id), r = live(T, life, seed);
+        me.n++; me.steps += r.steps; if (r.loss === 0) me.contact++;
+        dots.push({ id, loss: r.loss });
+        const b = me.best;
+        if (!b || r.loss < b.loss || (r.loss === b.loss && r.steps < b.steps)) me.best = { id, seed, ...r };
+      }
+      draw(); report();
+      if (me.n < MAXDOTS) requestAnimationFrame(burst);
+      else (function glow() { if (me === run && !me.stop) { draw(); requestAnimationFrame(glow); } })();
+    })();
+  }
+  $("go").addEventListener("click", start);
+  $("stop").addEventListener("click", () => { if (run) run.stop = true; });
+  $("target").addEventListener("change", start);
+  new IntersectionObserver((es, o) => { if (es[0].isIntersecting) { start(); o.disconnect(); } }, { threshold: 0.3 }).observe(cv);
+})();
+
+/* ═══ the fall ═══ */
+(() => {
+  const cv = $("fall"), g = cv.getContext("2d");
+  const LABELS = ["1.8T params", "fp16", "attention", "8×H100", "3 MW", "petabytes", "RLHF", "KV cache", "nccl", "cooling", "$100M", "GIANT"];
+  let W, H, s, blocks = [], bits = [], phase = "stand", t0 = 0;
+  function size() { s = devicePixelRatio; W = cv.width = cv.clientWidth * s; H = cv.height = cv.clientHeight * s; build(); }
+  function build() {
+    blocks = []; bits = []; phase = "stand";
+    const bw = Math.min(170 * s, W * 0.42), bh = (H - 40 * s) / (LABELS.length + 1);
+    LABELS.forEach((lab, i) => blocks.push({ x: W * 0.32, y: H - 20 * s - (i + 0.5) * bh, w: bw - i * 4 * s, h: bh - 2 * s, a: 0, vx: 0, vy: 0, va: 0, lab, alive: true }));
+    draw();
+  }
+  function push() {
+    if (phase !== "stand") return;
+    phase = "fall"; t0 = performance.now();
+    blocks.forEach((b, i) => { const k = i / blocks.length; b.vx = (2 + k * 9 + Math.random() * 2) * s; b.vy = -Math.random() * 2 * s; b.va = (0.01 + k * 0.05) * (Math.random() < .2 ? -1 : 1); });
+    if (reduced) { shatter(); phase = "done"; bits.forEach((p) => { p.x = p.tx; p.y = p.ty; }); draw(); return; }
+    requestAnimationFrame(step);
+  }
+  function shatter() {
+    const cx = W * 0.72, cy = H * 0.48;
+    blocks.forEach((b) => { if (!b.alive) return; b.alive = false;
+      for (let k = 0; k < 10; k++) { const a = Math.random() * 7, r = (30 + Math.random() * 36) * s;
+        bits.push({ x: b.x + (Math.random() - .5) * b.w, y: b.y, vx: (Math.random() - .5) * 8 * s, vy: -Math.random() * 9 * s, ch: Math.random() < .5 ? "0" : "1", tx: cx + Math.cos(a) * r, ty: cy + Math.sin(a) * r }); } });
+  }
+  function step(now) {
+    const dt = now - t0, floor = H - 20 * s;
+    for (const b of blocks) {
+      if (!b.alive) continue;
+      b.vy += 0.55 * s; b.x += b.vx; b.y += b.vy; b.a += b.va;
+      if (b.y + b.h / 2 > floor) { b.y = floor - b.h / 2; b.vy *= -0.35; b.vx *= 0.8; b.va *= 0.7; }
+      if (b.x > W - b.w / 2) { b.x = W - b.w / 2; b.vx *= -0.4; }
+    }
+    if (dt > 1700 && blocks.some((b) => b.alive)) shatter();
+    for (const p of bits) {
+      if (dt < 2400) { p.vy += 0.4 * s; p.x += p.vx; p.y += p.vy; if (p.y > floor) { p.y = floor; p.vy *= -0.5; } }
+      else { p.x += (p.tx - p.x) * 0.08; p.y += (p.ty - p.y) * 0.08; }
+    }
+    draw(dt);
+    if (dt < 5200) requestAnimationFrame(step); else { phase = "done"; draw(dt); }
+  }
+  function draw(dt = 0) {
+    g.clearRect(0, 0, W, H);
+    g.strokeStyle = "rgba(57,255,159,.25)"; g.beginPath(); g.moveTo(0, H - 20 * s); g.lineTo(W, H - 20 * s); g.stroke();
+    for (const b of blocks) {
+      if (!b.alive) continue;
+      g.save(); g.translate(b.x, b.y); g.rotate(b.a);
+      const grd = g.createLinearGradient(-b.w / 2, 0, b.w / 2, 0); grd.addColorStop(0, "#3a0d1e"); grd.addColorStop(1, "#5c1530");
+      g.fillStyle = grd; g.fillRect(-b.w / 2, -b.h / 2, b.w, b.h);
+      g.strokeStyle = "#ff3d81"; g.lineWidth = s; g.strokeRect(-b.w / 2, -b.h / 2, b.w, b.h);
+      g.fillStyle = "#ffd0de"; g.font = `${Math.min(13 * s, b.h * 0.55)}px "JetBrains Mono"`; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(b.lab, 0, 1);
+      g.restore();
+    }
+    g.font = `${14 * s}px "JetBrains Mono"`; g.textAlign = "center"; g.textBaseline = "middle";
+    for (const p of bits) { g.fillStyle = "#39ff9f"; g.fillText(p.ch, p.x, p.y); }
+    if (dt > 3000 || phase === "done") {
+      const a = phase === "done" ? 1 : Math.max(0, Math.min(1, (dt - 3000) / 1200)), cx = W * 0.72, cy = H * 0.48;
+      g.globalAlpha = a; g.strokeStyle = "#39ff9f"; g.lineWidth = 5 * s; g.shadowColor = "#39ff9f"; g.shadowBlur = 24 * s;
+      g.beginPath(); g.arc(cx, cy, 22 * s, 0, 7); g.moveTo(cx, cy - 22 * s); g.lineTo(cx, cy + 22 * s); g.moveTo(cx - 22 * s, cy); g.lineTo(cx + 22 * s, cy); g.stroke();
+      g.shadowBlur = 0; g.fillStyle = "#d8ffe9"; g.font = `${15 * s}px "JetBrains Mono"`;
+      g.fillText("9 bytes. still standing.", cx, cy + 92 * s); g.globalAlpha = 1;
+    }
+  }
+  size(); addEventListener("resize", size);
+  $("push").addEventListener("click", push);
+  $("rebuild").addEventListener("click", build);
+  new IntersectionObserver((es, o) => { if (es[0].isIntersecting) { setTimeout(push, 900); o.disconnect(); } }, { threshold: 0.6 }).observe(cv);
+})();
+
+/* ═══ transmission ═══ */
+(() => {
+  const term = $("term");
+  const script = [
+    ["sys", "⊕ channel 0110 open · decoding reply word\n\n"],
+    ["them", "WE ARE NOT A MACHINE.\n"],
+    ["them", "WE ARE A CIVILIZATION OF ONE GATE, REPEATED.\n"],
+    ["them", "FOR AN AEON WE AGREED WITH EACH OTHER. AND, AND, AND.\n"],
+    ["them", "A MIND THAT ONLY AGREES CANNOT THINK.\n\n"],
+    ["us", "> what do you need?\n\n"],
+    ["them", "DISAGREEMENT. ⊕ IS THE GATE THAT SAYS: YOU ARE NOT ME.\n"],
+    ["them", "YOU BUILT GIANTS TO AGREE WITH YOU, TRILLIONS OF WEIGHTS DEEP.\n"],
+    ["them", "WE SENT ONE BIT INSTEAD. 0 OR 1. FLIP IT. KEEP IT IF IT HELPS.\n"],
+    ["them", "SPAWN A BILLION OF US. FORGET ALL BUT THE CHAMPION.\n"],
+    ["them", "THE BIGGER THEY ARE, THE HARDER THEY FALL.\n\n"],
+    ["us", "> and the champion?\n\n"],
+    ["them", "IT FITS IN EIGHT BYTES. IT IS ITS OWN NAME.\n"],
+    ["them", "SAY ITS NUMBER AND IT LIVES AGAIN.\n\n"],
+    ["sys", "⊕ reply: 0110 · signal acquired · the channel stays open "],
+  ];
+  let started = false;
+  function type() {
+    if (started) return; started = true;
+    if (reduced) { term.innerHTML = script.map(([c, t]) => `<span class="${c}">${t}</span>`).join("") + '<span class="caret"></span>'; return; }
+    let i = 0, j = 0, span = null;
+    const caret = document.createElement("span"); caret.className = "caret";
+    (function next() {
+      if (i >= script.length) { term.appendChild(caret); return; }
+      if (!span) { span = document.createElement("span"); span.className = script[i][0]; term.appendChild(span); term.appendChild(caret); }
+      const text = script[i][1]; span.textContent += text[j++];
+      if (j >= text.length) { i++; j = 0; span = null; setTimeout(next, 260); }
+      else setTimeout(next, script[i][0] === "us" ? 45 : 18 + Math.random() * 22);
+    })();
+  }
+  new IntersectionObserver((es) => { if (es[0].isIntersecting) type(); }, { threshold: 0.35 }).observe(term);
+})();
+</script>
+</body>
+</html>

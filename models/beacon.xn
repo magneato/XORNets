@@ -1,0 +1,22 @@
+# ⊕ beacon.xn
+# Four-bit parity, relayed through two hidden ranks.  The deep-space test.
+
+[model]
+name    = beacon
+inputs  = 4
+target  = xor
+
+[layer]
+neurons = 6
+
+[layer]
+neurons = 4
+
+[layer]
+neurons = 1
+
+[options]
+seed     = 0xC0FFEE
+epochs   = 50000
+restarts = 128
+verbose  = 1

@@ -1,0 +1,18 @@
+# ⊕ parity3.xn
+# XOR folded over three bits: the cortex must count to three and say "odd".
+
+[model]
+name    = parity3
+inputs  = 3
+target  = xor
+
+[layer]
+neurons = 3
+
+[layer]
+neurons = 1
+
+[options]
+seed     = 0xA11E4
+epochs   = 20000
+restarts = 64

@@ -1,0 +1,20 @@
+# ⊕ first-contact.xn
+# The original transmission: two bits in, their XOR out.
+# A single threshold cell cannot say XOR, so the cortex grows a hidden rank.
+
+[model]
+name    = first-contact
+inputs  = 2
+target  = xor
+
+[layer]                 # hidden rank
+neurons = 2
+
+[layer]                 # the voice: exactly one cell
+neurons = 1
+
+[options]
+seed     = 0x5EED
+epochs   = 4096
+restarts = 32
+verbose  = 1

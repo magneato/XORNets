@@ -1,0 +1,20 @@
+# ⊕ signal.xn
+# A hand-wired cortex, no learning required: XOR as OR ∧ ¬AND.
+#   hidden n0  w 00  t 1   fires on any 1        (or)
+#   hidden n1  w 00  t 2   fires on both         (and)
+#   voice  n0  w 10  t 2   or ∧ ¬and             (n1 inverted by its weight)
+
+[model]
+name    = signal
+inputs  = 2
+target  = xor
+
+[layer]
+neurons    = 2
+weights    = 0b00, 0b00
+thresholds = 1, 2
+
+[layer]
+neurons    = 1
+weights    = 0b10
+thresholds = 2

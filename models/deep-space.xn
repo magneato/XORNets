@@ -1,0 +1,28 @@
+# ⊕ deep-space.xn
+# Six-bit parity: 64 rows, the whole dataset in one register.  Hand-wired.
+#
+# The hidden rank counts: cell k fires when at least k+1 inputs are lit.
+# The voice inverts every second counter (weight 0b101010) and fires at 4:
+#   for c lit inputs the voice sees 3 + (c mod 2) agreeing bits, so it
+#   speaks exactly when c is odd.  XOR, folded six times.
+
+[model]
+name    = deep-space
+inputs  = 6
+target  = xor
+
+[layer]
+neurons    = 6
+weights    = 0, 0, 0, 0, 0, 0
+thresholds = 1, 2, 3, 4, 5, 6
+
+[layer]
+neurons    = 1
+weights    = 0b101010
+thresholds = 4
+
+[options]
+seed     = 0xD5
+epochs   = 128000
+restarts = 64
+verbose  = 0
