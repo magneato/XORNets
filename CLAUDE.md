@@ -14,10 +14,12 @@ XORNets / **xn**: a tiny 1-bit neural engine. Weights, activations and outputs a
 ./test.sh                # build + C++ probes + CLI checks (exit 1 on any failure)
 ./test.sh parser         # build + only C++ probes whose name contains "parser" (skips CLI checks)
 build/xn_test train      # run a probe subset without rebuilding
+build/xnist              # interactive TUI drawing pad for MNIST (mouse + keyboard + layer stacking)
 ./run.sh [model.xn]      # interactive: xn --model … --prompt
 ```
 
-`build.sh` assembles each `engine/*.asm` with `nasm -f elf64 -I engine/`. All modules except `xn.asm` (including `agents.asm`) go into `build/libxn.a`. `build/xn` is `xn.o + libxn.a` linked with `ld -static -nostdlib` (entry `_start`). `xnc` and `xn_test` are compiled with `g++ -std=c++26 -Isdk/include … build/libxn.a`.
+`build.sh` assembles each `engine/*.asm` with `nasm -f elf64 -I engine/`. All modules except `xn.asm` (including `agents.asm` and `mnist.asm`) go into `build/libxn.a`. `build/xn` is `xn.o + libxn.a` linked with `ld -static -nostdlib` (entry `_start`). `xnc`, `xnist`, and `xn_test` are compiled with `g++ -std=c++26 -Isdk/include … build/libxn.a`.
+
 
 ## Architecture
 

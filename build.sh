@@ -34,8 +34,11 @@ ld -static -nostdlib -z noexecstack -z max-page-size=4096 --gc-sections -s -o "$
 CXXSTD=(-std=c++26 -O2 -Wall -Wextra -Wpedantic -Isdk/include)
 say "compiling xnc (c++26)"
 "$CXX" "${CXXSTD[@]}" ${CXXFLAGS:-} tools/xnc.cpp "$OUT/libxn.a" -o "$OUT/xnc"
+say "compiling xnist (c++26)"
+"$CXX" "${CXXSTD[@]}" ${CXXFLAGS:-} tools/xnist.cpp "$OUT/libxn.a" -o "$OUT/xnist"
 say "compiling xn_test (c++26)"
 "$CXX" "${CXXSTD[@]}" ${CXXFLAGS:-} tests/xn_test.cpp "$OUT/libxn.a" -o "$OUT/xn_test"
+
 
 size=$(stat -c %s "$OUT/xn")
 say "done · xn is $size bytes"
