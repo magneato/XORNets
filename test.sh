@@ -102,6 +102,9 @@ $XNC forge --inputs 3 --truth 0x81 --hidden 4 --name twins > "$tmp/twins.xn"
 expect "forged model trains"     0 "SIGNAL ACQUIRED"              -- $XN --model "$tmp/twins.xn"
 expect "xnc forge limits"        2 "--inputs wants 1..6"          -- $XNC forge --inputs 7
 expect "xnc bad file"            2 "bad\.xn:6: unknown key"       -- $XNC inspect "$tmp/bad.xn"
+expect "xnc mnist accuracy"      0 "accuracy +48/50"              -- $XNC mnist
+expect "xnc mnist sample"        0 "sample 0 · true label: 7"     -- $XNC mnist --sample 0 --stack
+
 
 echo
 echo "  console checks · $pass passed · $fail failed"

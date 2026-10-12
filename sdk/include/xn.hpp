@@ -105,4 +105,45 @@ private:
 
 [[nodiscard]] inline auto version() -> std::string_view { return xn_version(); }
 
+namespace mnist {
+
+struct stack {
+    xn_mnist_stack raw{};
+
+    [[nodiscard]] static auto from_image(std::span<const std::uint8_t, 784> img) -> stack {
+        stack s;
+        xn_mnist_preprocess(img.data(), &s.raw);
+        return s;
+    }
+
+    [[nodiscard]] static auto from_image(const std::uint8_t *img784) -> stack {
+        stack s;
+        xn_mnist_preprocess(img784, &s.raw);
+        return s;
+    }
+
+    [[nodiscard]] auto infer(std::span<std::int32_t, 10> out_logits) const -> int {
+        return xn_mnist_infer(&raw, out_logits.data());
+    }
+
+    [[nodiscard]] auto infer() const -> int {
+        return xn_mnist_infer(&raw, nullptr);
+    }
+};
+
+[[nodiscard]] inline auto infer_image(const std::uint8_t *img784, std::int32_t *logits = nullptr) -> int {
+    return xn_mnist_infer_image(img784, logits);
+}
+
+[[nodiscard]] inline auto test_count() -> std::uint64_t {
+    return xn_mnist_test_count();
+}
+
+inline auto test_sample(std::uint64_t idx, std::uint8_t *out_label = nullptr) -> const std::uint8_t* {
+    return xn_mnist_test_sample(idx, out_label);
+}
+
+}  // namespace mnist
+
 }  // namespace xn
+

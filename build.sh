@@ -19,7 +19,7 @@ mkdir -p "$OBJ"
 say() { printf '  \342\212\225 %s\n' "$*"; }
 
 say "assembling engine"
-ENGINE=(xor io layer inference train options model agents)
+ENGINE=(xor io layer inference train options model agents mnist)
 for m in "${ENGINE[@]}" xn; do
     "$NASM" -f elf64 -I engine/ -o "$OBJ/$m.o" "engine/$m.asm"
 done

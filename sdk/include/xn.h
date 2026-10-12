@@ -120,6 +120,19 @@ uint32_t    xn_swarm_size(void);
 uint32_t    xn_swarm_stack(void);       /* bytes of stack per spawned thread      */
 uint32_t    xn_agent_footprint(void);   /* peak stack bytes of one living agent   */
 uint32_t    xn_io_capacity(void);
+/* ── mnist: layer stacking geometry ───────────────────────────────────────
+ * 4 bit planes (>32, >96, >160, >224) stacked with inter-plane XOR operations
+ * giving 7 planks of 144 bits each (1008 stacked bit features = 21 uint64_t words).
+ * Pure integer weights, zero floating point.                               */
+typedef struct xn_mnist_stack {
+    uint64_t words[21];                 /* 7 planks × 3 uint64 words = 1008 bits */
+} xn_mnist_stack;
+
+void        xn_mnist_preprocess(const uint8_t *img784, xn_mnist_stack *out_stack);
+int32_t     xn_mnist_infer(const xn_mnist_stack *stack, int32_t *out_logits);
+int32_t     xn_mnist_infer_image(const uint8_t *img784, int32_t *out_logits);
+uint64_t    xn_mnist_test_count(void);
+const uint8_t *xn_mnist_test_sample(uint64_t idx, uint8_t *out_label);
 
 #ifdef __cplusplus
 }

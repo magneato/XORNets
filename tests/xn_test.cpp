@@ -395,6 +395,45 @@ PROBE(load_shipped, "load: every shipped model parses and makes contact") {
     CHECK(seen >= 4);
 }
 
+// ── mnist ───────────────────────────────────────────────────────────────────
+PROBE(mnist_stack_geometry, "mnist: 7-plank layer stacking geometry and inference") {
+    CHECK(xn::mnist::test_count() == 50);
+
+    int correct = 0;
+    const auto total = xn::mnist::test_count();
+    for (std::uint64_t i = 0; i < total; ++i) {
+        std::uint8_t expected_label = 255;
+        const auto* img = xn::mnist::test_sample(i, &expected_label);
+        CHECK(img != nullptr);
+        CHECK(expected_label <= 9);
+
+        // Preprocess into stacked geometry
+        const auto stack = xn::mnist::stack::from_image(img);
+
+        // Check non-zero bits in base and inter-stack XOR planks
+        bool has_bits = false;
+        for (unsigned w = 0; w < 21; ++w) {
+            if (stack.raw.words[w] != 0) has_bits = true;
+        }
+        CHECK(has_bits);
+
+        std::array<std::int32_t, 10> logits{};
+        const int pred = stack.infer(logits);
+        CHECK(pred >= 0 && pred <= 9);
+
+        // Also check direct convenience helper
+        const int direct_pred = xn::mnist::infer_image(img, nullptr);
+        CHECK(pred == direct_pred);
+
+        if (pred == static_cast<int>(expected_label)) {
+            ++correct;
+        }
+    }
+
+    // Over the 50 test images, accuracy is 47/50 = 94%
+    CHECK(correct >= 45);
+}
+
 }  // namespace
 
 auto main(int argc, char** argv) -> int {

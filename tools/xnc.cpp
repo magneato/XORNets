@@ -43,9 +43,11 @@ auto usage() -> int {
         "  xnc swarm   FILE.xn [--agents N] [--threads T]\n"
         "  xnc forge   --inputs N [--target xor|xnor|and|or|nand|nor | --truth W]\n"
         "              [--hidden 4,2] [--name S] [--seed S]\n"
+        "  xnc mnist   [--sample N] [--bench] [--stack]\n"
         "  xnc version\n");
     return 2;
 }
+
 
 template <class... Parts>
 [[noreturn]] void die(std::format_string<Parts...> fmt, Parts&&... parts) {
@@ -236,6 +238,113 @@ auto forge(std::span<const std::string_view> args) -> int {
     return 0;
 }
 
+// ── mnist ───────────────────────────────────────────────────────────────────
+auto mnist_cmd(std::span<const std::string_view> args) -> int {
+    std::optional<std::uint64_t> sample_idx{};
+    bool bench = false;
+    bool show_stack = false;
+
+    for (std::size_t i = 0; i < args.size(); ++i) {
+        const auto a = args[i];
+        if (a == "--sample" && i + 1 < args.size()) {
+            sample_idx = parse_number(args[++i]);
+        } else if (a == "--bench") {
+            bench = true;
+        } else if (a == "--stack") {
+            show_stack = true;
+        } else {
+            die("mnist: unexpected '{}'", a);
+        }
+    }
+
+    const auto total = xn::mnist::test_count();
+    std::println("⊕ xnc mnist · layer stacking geometry ({}-plank bit tensor)", 7);
+
+    if (sample_idx) {
+        if (*sample_idx >= total) die("sample index {} out of range (0..{})", *sample_idx, total - 1);
+        std::uint8_t true_lbl = 0;
+        const auto* img = xn::mnist::test_sample(*sample_idx, &true_lbl);
+        const auto st = xn::mnist::stack::from_image(img);
+
+        std::array<std::int32_t, 10> logits{};
+        const int pred = st.infer(logits);
+
+        std::println("  sample {} · true label: {} · predicted: {} {}",
+                     *sample_idx, true_lbl, pred, pred == true_lbl ? "✓" : "✗");
+
+        // Display ascii art preview (28x28 rendered at 14x14)
+        std::println("\n  input image (28×28):");
+        for (int r = 0; r < 28; r += 2) {
+            std::string line = "    ";
+            for (int c = 0; c < 28; c += 2) {
+                int avg = (img[r * 28 + c] + img[r * 28 + c + 1] +
+                           img[(r + 1) * 28 + c] + img[(r + 1) * 28 + c + 1]) / 4;
+                line += (avg > 128) ? "▮" : (avg > 32 ? "·" : " ");
+            }
+            std::println("{}", line);
+        }
+
+        if (show_stack) {
+            std::println("\n  layer stacking geometry (7 planks × 144 bits):");
+            const char* plank_names[] = {
+                "Plank 0: Bit plane >32  (base silhouette)",
+                "Plank 1: Bit plane >96  (core body)",
+                "Plank 2: Bit plane >160 (dense mass)",
+                "Plank 3: Bit plane >224 (peak ink)",
+                "Plank 4: Inter-stack XOR (P0 ⊕ P1: outer halo / penumbra)",
+                "Plank 5: Inter-stack XOR (P1 ⊕ P2: mid boundary)",
+                "Plank 6: Inter-stack XOR (P2 ⊕ P3: core ridge)"
+            };
+            for (int p = 0; p < 7; ++p) {
+                std::println("    {} [words: {:#018x} {:#018x} {:#06x}]",
+                             plank_names[p],
+                             st.raw.words[p * 3], st.raw.words[p * 3 + 1], st.raw.words[p * 3 + 2]);
+            }
+        }
+
+        std::println("\n  output logits:");
+        for (int k = 0; k < 10; ++k) {
+            std::println("    digit {} : {:>7}  {}", k, logits[k], k == pred ? "◄" : " ");
+        }
+        return 0;
+    }
+
+    // Run test set evaluation
+    int correct = 0;
+    const auto t0 = std::chrono::steady_clock::now();
+    for (std::uint64_t i = 0; i < total; ++i) {
+        std::uint8_t true_lbl = 0;
+        const auto* img = xn::mnist::test_sample(i, &true_lbl);
+        const int pred = xn::mnist::infer_image(img, nullptr);
+        if (pred == true_lbl) ++correct;
+    }
+    const auto t1 = std::chrono::steady_clock::now();
+    const auto elapsed_us = std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0).count();
+
+    std::println("  accuracy   {}/{} ({:.1f}%)", correct, total, (100.0 * correct) / total);
+    std::println("  latency    {:.2f} µs/image (total: {} µs for {} images)",
+                 static_cast<double>(elapsed_us) / total, elapsed_us, total);
+
+    if (bench) {
+        std::println("\n  benchmark  running 100,000 stacked inferences...");
+        const auto tb0 = std::chrono::steady_clock::now();
+        constexpr int bench_runs = 100000;
+        const auto* img = xn::mnist::test_sample(0, nullptr);
+        const auto st = xn::mnist::stack::from_image(img);
+        int checksum = 0;
+        for (int i = 0; i < bench_runs; ++i) {
+            checksum += st.infer();
+        }
+        const auto tb1 = std::chrono::steady_clock::now();
+        const auto bench_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(tb1 - tb0).count();
+        std::println("  throughput {:.2f} million inferences/sec ({:.1f} ns/infer, checksum {})",
+                     (bench_runs * 1e9) / (bench_ns * 1e6),
+                     static_cast<double>(bench_ns) / bench_runs, checksum);
+    }
+
+    return 0;
+}
+
 }  // namespace
 
 auto main(int argc, char** argv) -> int {
@@ -246,6 +355,7 @@ auto main(int argc, char** argv) -> int {
 
     if (cmd == "version") { std::println("xnc · {} · abi {}", xn::version(), xn_abi_version()); return 0; }
     if (cmd == "forge") return forge(rest);
+    if (cmd == "mnist") return mnist_cmd(rest);
     if (rest.empty()) return usage();
     if (cmd == "inspect") return inspect(rest[0]);
     if (cmd == "table") return table(rest[0]);
@@ -253,3 +363,4 @@ auto main(int argc, char** argv) -> int {
     if (cmd == "swarm") return swarm(rest[0], rest.subspan(1));
     return usage();
 }
+
