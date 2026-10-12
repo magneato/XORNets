@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-XORNets / **xn**: a tiny 1-bit neural engine. Weights, activations and outputs are all bits, and every neuron is the same XOR cell: `y = popcnt((x ⊕ w) & fan) >= t`. The runtime is x86-64 NASM assembly for Linux with no libc. The tools and tests are C++26. No Python anywhere. Licensed AGPL-3.0. `WDR1_KERNEL.ASM` is the original 16-bit DOS/MASM prototype. It is not built and is not part of xn.
+XORNets / **xn**: a tiny 1-bit neural engine. Weights, activations and outputs are all bits, and every neuron is the same XOR cell: `y = popcnt((x ⊕ w) & fan) >= t`. The runtime is x86-64 NASM assembly for Linux with no libc. The tools and tests are C++26. No Python anywhere. Licensed under the Clear BSD License. `WDR1_KERNEL.ASM` is the original 16-bit DOS/MASM prototype. It is not built and is not part of xn.
 
 ## Commands
 
