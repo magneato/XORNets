@@ -107,6 +107,7 @@ expect "xnc mnist sample"        0 "sample 0 · true label: 7"     -- $XNC mnist
 expect "xnist help"              0 "Interactive TUI Drawing Pad"  -- build/xnist --help
 expect "redact help"             0 "Document text redaction"      -- build/redact --help
 expect "unredact help"           0 "Visual recovery and inpainting" -- build/unredact --help
+expect "xn_style help"           0 "XOR-based Meta-level Style Transfer" -- build/xn_style --help
 
 
 

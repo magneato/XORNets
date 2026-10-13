@@ -34,6 +34,8 @@ build/xnist              # interactive TUI drawing pad for MNIST (mouse + keyboa
 - **Redaction & Unredaction Tools (`apps/redact`).**
   - `build/redact`: C++26 image analysis and dataset utility for document processing.
   - `build/unredact`: C++26 visual recovery and inpainting tool for redacted imagery.
+- **Style Transfer Tool (`apps/style`).**
+  - `build/xn_style`: C++26 XOR-based meta-level style transfer engine with interactive Raylib visualization.
 
 
 ## Assembly conventions

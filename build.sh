@@ -40,6 +40,10 @@ say "compiling redact (c++26)"
 "$CXX" "${CXXSTD[@]}" -Iapps/redact ${CXXFLAGS:-} apps/redact/redact.cpp -o "$OUT/redact"
 say "compiling unredact (c++26)"
 "$CXX" "${CXXSTD[@]}" -Iapps/redact ${CXXFLAGS:-} apps/redact/unredact.cpp -o "$OUT/unredact"
+say "compiling xn_style (c++26 + raylib)"
+"$CXX" "${CXXSTD[@]}" -Iapps/style -Iapps/style/vendor/raylib/include -Iapps/redact ${CXXFLAGS:-} \
+    apps/style/style.cpp apps/style/main.cpp apps/style/vendor/raylib/lib/libraylib.a \
+    -lGL -lm -lpthread -ldl -lrt -lX11 -o "$OUT/xn_style"
 say "compiling xn_test (c++26)"
 "$CXX" "${CXXSTD[@]}" ${CXXFLAGS:-} tests/xn_test.cpp "$OUT/libxn.a" -o "$OUT/xn_test"
 
