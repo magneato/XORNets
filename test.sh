@@ -105,6 +105,9 @@ expect "xnc bad file"            2 "bad\.xn:6: unknown key"       -- $XNC inspec
 expect "xnc mnist accuracy"      0 "accuracy +48/50"              -- $XNC mnist
 expect "xnc mnist sample"        0 "sample 0 · true label: 7"     -- $XNC mnist --sample 0 --stack
 expect "xnist help"              0 "Interactive TUI Drawing Pad"  -- build/xnist --help
+expect "redact help"             0 "Document text redaction"      -- build/redact --help
+expect "unredact help"           0 "Visual recovery and inpainting" -- build/unredact --help
+
 
 
 

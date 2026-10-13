@@ -36,8 +36,13 @@ say "compiling xnc (c++26)"
 "$CXX" "${CXXSTD[@]}" ${CXXFLAGS:-} tools/xnc.cpp "$OUT/libxn.a" -o "$OUT/xnc"
 say "compiling xnist (c++26)"
 "$CXX" "${CXXSTD[@]}" ${CXXFLAGS:-} tools/xnist.cpp "$OUT/libxn.a" -o "$OUT/xnist"
+say "compiling redact (c++26)"
+"$CXX" "${CXXSTD[@]}" -Iapps/redact ${CXXFLAGS:-} apps/redact/redact.cpp -o "$OUT/redact"
+say "compiling unredact (c++26)"
+"$CXX" "${CXXSTD[@]}" -Iapps/redact ${CXXFLAGS:-} apps/redact/unredact.cpp -o "$OUT/unredact"
 say "compiling xn_test (c++26)"
 "$CXX" "${CXXSTD[@]}" ${CXXFLAGS:-} tests/xn_test.cpp "$OUT/libxn.a" -o "$OUT/xn_test"
+
 
 
 size=$(stat -c %s "$OUT/xn")

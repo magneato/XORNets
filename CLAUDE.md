@@ -31,6 +31,10 @@ build/xnist              # interactive TUI drawing pad for MNIST (mouse + keyboa
 - **Output.** `io.asm` holds the only process-global state: a 64 KB buffer flushed to `xn_io_fd`. `xn_emit` temporarily retargets it to the given fd. `xn.asm` (`_start`) flushes at exit.
 - **C++ side.** `xn.hpp` wraps the C ABI as `xn::model` (value type; copying forks an organism) with `std::expected<_, xn::error>`. `tests/xn_test.cpp` checks the asm against naive C++ reference implementations (`ref_cell`, `ref_forward`, `ref_target`). New probes use the `PROBE(id, "label")` macro. The `load_shipped` probe requires every `models/*.xn` to reach loss 0, so keep shipped models fast to train or hand-wired.
 - **Layer Stacking Geometry & MNIST.** `engine/mnist.asm` implements multi-layer bit plane stacking for complex computer vision tasks like handwritten digit recognition. Images are transformed into a massive bit geometry tensor consisting of 4 base bit planes (>32, >96, >160, >224) and 3 inter-stack XOR planes ($P_0 \oplus P_1$, $P_1 \oplus P_2$, $P_2 \oplus P_3$), yielding 7 stacked planks (1008 bits total packed in 21 64-bit words). A 1-bit integer accumulation and thresholding hidden rank outputs 10 class logits with zero floating-point computation, achieving 95.3% accuracy on full MNIST test sets. Accessible via C ABI (`xn_mnist_*`), C++26 SDK (`xn::mnist::*`), and CLI (`xnc mnist [--sample N] [--bench] [--stack]`).
+- **Redaction & Unredaction Tools (`apps/redact`).**
+  - `build/redact`: C++26 image analysis and dataset utility for document processing.
+  - `build/unredact`: C++26 visual recovery and inpainting tool for redacted imagery.
+
 
 ## Assembly conventions
 
