@@ -156,6 +156,7 @@ struct ImageRGB {
 // OCR via Tesseract TSV
 auto run_ocr_tsv(const std::filesystem::path& image_path) -> std::vector<TextItem>;
 auto merge_word_boxes(const std::vector<TextItem>& items, int max_x_gap = 25, int max_y_gap = 15) -> std::vector<TextBlock>;
+auto align_boxes_vertically(const std::vector<TextBlock>& blocks, int img_height) -> std::vector<TextBlock>;
 auto shrinkwrap_bbox(const ImageRGB& img, const Box& bbox, int padding = 4) -> Box;
 auto generate_counterfactuals(int img_w, int img_h, const std::vector<Box>& text_boxes, int num_samples = 5) -> std::vector<CounterfactualItem>;
 

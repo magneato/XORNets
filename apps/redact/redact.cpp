@@ -137,6 +137,91 @@ auto merge_word_boxes(const std::vector<TextItem>& items, int max_x_gap, int max
     return blocks;
 }
 
+auto align_boxes_vertically(const std::vector<TextBlock>& blocks, int img_height) -> std::vector<TextBlock> {
+    if (blocks.size() <= 1) return blocks;
+
+    // 1. Group blocks into horizontal lines/rows based on y-overlap or proximity
+    struct LineGroup {
+        std::vector<size_t> indices;
+        int y0 = 100000;
+        int y1 = -1;
+    };
+
+    std::vector<LineGroup> lines;
+    for (size_t i = 0; i < blocks.size(); ++i) {
+        const auto& b = blocks[i].bbox;
+        bool placed = false;
+        for (auto& line : lines) {
+            // Check vertical overlap or vertical center distance
+            const int line_mid = (line.y0 + line.y1) / 2;
+            const int b_mid = (b.y0 + b.y1) / 2;
+            const int line_h = std::max(1, line.y1 - line.y0);
+            const int b_h = std::max(1, b.height());
+            const int allowed_diff = std::max(8, std::min(line_h, b_h) / 2);
+
+            if (std::abs(line_mid - b_mid) <= allowed_diff) {
+                line.indices.push_back(i);
+                line.y0 = std::min(line.y0, b.y0);
+                line.y1 = std::max(line.y1, b.y1);
+                placed = true;
+                break;
+            }
+        }
+        if (!placed) {
+            LineGroup lg;
+            lg.indices.push_back(i);
+            lg.y0 = b.y0;
+            lg.y1 = b.y1;
+            lines.push_back(std::move(lg));
+        }
+    }
+
+    // Sort lines from top to bottom
+    std::sort(lines.begin(), lines.end(), [](const LineGroup& a, const LineGroup& b) {
+        return a.y0 < b.y0;
+    });
+
+    // 2. Compute average height per line
+    double total_height = 0.0;
+    for (const auto& line : lines) {
+        total_height += (line.y1 - line.y0);
+    }
+    const double avg_line_h = total_height / lines.size();
+
+    // 3. Compute average gap between consecutive lines
+    double total_gap = 0.0;
+    int gap_count = 0;
+    for (size_t l = 1; l < lines.size(); ++l) {
+        int gap = lines[l].y0 - lines[l - 1].y1;
+        if (gap > 0 && gap < avg_line_h * 3.0) {
+            total_gap += gap;
+            gap_count++;
+        }
+    }
+    const double avg_gap = (gap_count > 0) ? (total_gap / gap_count) : (avg_line_h * 0.25);
+    const int vertical_slice = std::max(10, static_cast<int>(std::round(avg_line_h + avg_gap)));
+
+    // 4. Align each line to consistent vertical slice dimensions
+    auto aligned = blocks;
+    for (const auto& line : lines) {
+        // Find line baseline / vertical center
+        const int mid_y = (line.y0 + line.y1) / 2;
+        const int half_slice = vertical_slice / 2;
+        int target_y0 = std::max(0, mid_y - half_slice);
+        int target_y1 = std::min(img_height, target_y0 + vertical_slice);
+        if (target_y1 == img_height) {
+            target_y0 = std::max(0, target_y1 - vertical_slice);
+        }
+
+        for (size_t idx : line.indices) {
+            aligned[idx].bbox.y0 = target_y0;
+            aligned[idx].bbox.y1 = target_y1;
+        }
+    }
+
+    return aligned;
+}
+
 auto shrinkwrap_bbox(const ImageRGB& img, const Box& bbox, int padding) -> Box {
     const int x0 = std::clamp(bbox.x0, 0, img.width);
     const int y0 = std::clamp(bbox.y0, 0, img.height);
@@ -231,11 +316,12 @@ auto process_image(const std::filesystem::path& img_path,
     }
 
     const auto raw_blocks = merge_word_boxes(valid_items);
+    const auto aligned_blocks = align_boxes_vertically(raw_blocks, img.height);
     std::vector<TextBlock> shrinkwrapped;
-    shrinkwrapped.reserve(raw_blocks.size());
+    shrinkwrapped.reserve(aligned_blocks.size());
 
     std::vector<Box> all_boxes;
-    for (const auto& blk : raw_blocks) {
+    for (const auto& blk : aligned_blocks) {
         const auto s_box = shrinkwrap_bbox(img, blk.bbox, padding);
         shrinkwrapped.push_back(TextBlock{s_box, blk.text, blk.avg_conf});
         all_boxes.push_back(s_box);

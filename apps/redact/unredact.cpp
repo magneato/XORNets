@@ -155,6 +155,73 @@ auto detect_redacted_rectangles(const redact::ImageRGB& img, int min_area, int d
         return a.y0 < b.y0;
     });
 
+    // 6. Vertical slice alignment: calculate average height per line + gap
+    if (merged.size() > 1) {
+        struct LineCluster {
+            std::vector<size_t> indices;
+            int y0 = 100000;
+            int y1 = -1;
+        };
+        std::vector<LineCluster> line_clusters;
+        for (size_t i = 0; i < merged.size(); ++i) {
+            const auto& b = merged[i];
+            bool added = false;
+            for (auto& lc : line_clusters) {
+                const int lc_mid = (lc.y0 + lc.y1) / 2;
+                const int b_mid = (b.y0 + b.y1) / 2;
+                const int lc_h = std::max(1, lc.y1 - lc.y0);
+                const int b_h = std::max(1, b.height());
+                const int diff = std::max(8, std::min(lc_h, b_h) / 2);
+                if (std::abs(lc_mid - b_mid) <= diff) {
+                    lc.indices.push_back(i);
+                    lc.y0 = std::min(lc.y0, b.y0);
+                    lc.y1 = std::max(lc.y1, b.y1);
+                    added = true;
+                    break;
+                }
+            }
+            if (!added) {
+                LineCluster lc;
+                lc.indices.push_back(i);
+                lc.y0 = b.y0;
+                lc.y1 = b.y1;
+                line_clusters.push_back(std::move(lc));
+            }
+        }
+
+        std::sort(line_clusters.begin(), line_clusters.end(), [](const LineCluster& a, const LineCluster& b) {
+            return a.y0 < b.y0;
+        });
+
+        double total_h = 0.0;
+        for (const auto& lc : line_clusters) total_h += (lc.y1 - lc.y0);
+        const double avg_h = total_h / line_clusters.size();
+
+        double total_gap = 0.0;
+        int gaps = 0;
+        for (size_t l = 1; l < line_clusters.size(); ++l) {
+            int g = line_clusters[l].y0 - line_clusters[l - 1].y1;
+            if (g > 0 && g < avg_h * 3.0) {
+                total_gap += g;
+                gaps++;
+            }
+        }
+        const double avg_gap = (gaps > 0) ? (total_gap / gaps) : (avg_h * 0.25);
+        const int vert_slice = std::max(10, static_cast<int>(std::round(avg_h + avg_gap)));
+
+        for (const auto& lc : line_clusters) {
+            const int mid_y = (lc.y0 + lc.y1) / 2;
+            int ty0 = std::max(0, mid_y - (vert_slice / 2));
+            int ty1 = std::min(h, ty0 + vert_slice);
+            if (ty1 == h) ty0 = std::max(0, ty1 - vert_slice);
+
+            for (size_t idx : lc.indices) {
+                merged[idx].y0 = ty0;
+                merged[idx].y1 = ty1;
+            }
+        }
+    }
+
     return merged;
 }
 
@@ -232,6 +299,21 @@ auto score_candidate(std::string_view cand, std::string_view ctx) -> float {
     return score;
 }
 
+namespace {
+auto escape_json(std::string_view s) -> std::string {
+    std::string out;
+    for (char c : s) {
+        if (c == '"') out += "\\\"";
+        else if (c == '\\') out += "\\\\";
+        else if (c == '\n') out += "\\n";
+        else if (c == '\r') out += "\\r";
+        else if (c == '\t') out += "\\t";
+        else out += c;
+    }
+    return out;
+}
+} // namespace
+
 auto query_local_mcp_or_server(std::string_view prompt, std::string_view ctx, int port)
     -> std::optional<std::string> {
     int sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -251,9 +333,11 @@ auto query_local_mcp_or_server(std::string_view prompt, std::string_view ctx, in
         return std::nullopt;
     }
 
-    // Build JSON HTTP request
+    // Build JSON HTTP request with escaped characters
+    std::string prompt_esc = escape_json(prompt);
+    std::string ctx_esc = escape_json(ctx);
     std::string body = "{\"model\":\"local\",\"messages\":[{\"role\":\"user\",\"content\":\"" +
-                       std::string(prompt) + " Context: " + std::string(ctx) + "\"}]}";
+                       prompt_esc + " Context: " + ctx_esc + "\"}]}";
     std::string req = "POST /v1/chat/completions HTTP/1.1\r\nHost: 127.0.0.1:" + std::to_string(port) +
                       "\r\nContent-Type: application/json\r\nContent-Length: " +
                       std::to_string(body.size()) + "\r\nConnection: close\r\n\r\n" + body;
@@ -273,7 +357,19 @@ auto query_local_mcp_or_server(std::string_view prompt, std::string_view ctx, in
         auto start = resp.find('"', f + 10);
         auto end = resp.find('"', start + 1);
         if (start != std::string::npos && end != std::string::npos) {
-            return resp.substr(start + 1, end - start - 1);
+            std::string content = resp.substr(start + 1, end - start - 1);
+            // Unescape basic json
+            std::string unescaped;
+            for (size_t i = 0; i < content.size(); ++i) {
+                if (content[i] == '\\' && i + 1 < content.size()) {
+                    if (content[i + 1] == 'n') { unescaped += '\n'; ++i; continue; }
+                    if (content[i + 1] == 't') { unescaped += '\t'; ++i; continue; }
+                    if (content[i + 1] == '"') { unescaped += '"'; ++i; continue; }
+                    if (content[i + 1] == '\\') { unescaped += '\\'; ++i; continue; }
+                }
+                unescaped += content[i];
+            }
+            return unescaped;
         }
     }
     return std::nullopt;
